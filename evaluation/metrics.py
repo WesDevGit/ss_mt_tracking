@@ -5,19 +5,6 @@ def pos_from_state(x):
     return np.asarray(x, dtype=float).reshape(-1)[:2]
 
 
-def pred_key_to_truth_index(pred_key):
-    """
-    Map pred_log key to truth_state list index.
-
-    'k'   -> 1   (truth at k)
-    'k_1' -> 2   (truth at k+1)
-    'k_2' -> 3   (truth at k+2)
-    etc.
-    """
-    if pred_key == 'k':
-        return 1
-    return int(pred_key.split('_')[1]) + 1
-
 
 def position_rmse_from_truth_and_predlog(truth_state, pred_log):
     """
@@ -28,21 +15,22 @@ def position_rmse_from_truth_and_predlog(truth_state, pred_log):
       - etc.
 
     Only uses matched samples that actually exist.
+    # This allows me to pull the proper index from each truth and prediction for alignment and look at the rmse
+    # Not exactly sure if I should be taking all of truth with only what is captured.
     """
     sq_errors = []
     matched_samples = []
 
     for pred_key, tracks_at_time in pred_log.items():
-        truth_idx = pred_key_to_truth_index(pred_key)
 
         for track_id, pred_entry in tracks_at_time.items():
             if track_id not in truth_state:
                 continue
 
-            if truth_idx >= len(truth_state[track_id]):
+            if pred_key >= len(truth_state[track_id]):
                 continue
 
-            x_truth = truth_state[track_id][truth_idx]
+            x_truth = truth_state[track_id][pred_key]
             x_pred = pred_entry[0]   # pred_entry = [x_pred, P_pred]
 
             truth_xy = pos_from_state(x_truth)
@@ -68,12 +56,11 @@ def track_coverage_from_truth_and_predlog(truth_state, pred_log):
         total_possible += max(len(truth_list) - 1, 0)
 
     for pred_key, tracks_at_time in pred_log.items():
-        truth_idx = pred_key_to_truth_index(pred_key)
 
         for track_id in tracks_at_time:
             if track_id not in truth_state:
                 continue
-            if truth_idx >= len(truth_state[track_id]):
+            if pred_key >= len(truth_state[track_id]):
                 continue
             matched += 1
 
@@ -86,16 +73,15 @@ def position_rmse_per_track_from_truth_and_predlog(truth_state, pred_log):
     per_track_sq_errors = {}
 
     for pred_key, tracks_at_time in pred_log.items():
-        truth_idx = pred_key_to_truth_index(pred_key)
 
         for track_id, pred_entry in tracks_at_time.items():
             if track_id not in truth_state:
                 continue
 
-            if truth_idx >= len(truth_state[track_id]):
+            if pred_key >= len(truth_state[track_id]):
                 continue
 
-            x_truth = truth_state[track_id][truth_idx]
+            x_truth = truth_state[track_id][pred_key]
             x_pred = pred_entry[0]
 
             truth_xy = pos_from_state(x_truth)

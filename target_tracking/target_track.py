@@ -5,17 +5,17 @@ from target_tracking.kalman_filter import KalmanFilter
 
 class Track:
 
-    def __init__(self, track_id, kf, tenative = False):
+    def __init__(self, track_id, kf, tentative = False):
         self.track_id = track_id 
         self.kf = kf # filter object
         self.missed_count = 0 # number of missed detections
         self.age = 1 # track age (number of times track_id remains alive)
         self.hit_count = 1 
-        self.tenative = tenative # determines if the track is tenative or active
+        self.tentative = tentative # determines if the track is tentative or active
         self.track_predicted_states = {}
 
     def predict(self):
-        "Used to predict single track but do not propagate"
+        "Used to predict single track but do not coast"
         return self.kf.predict()
 
     def update(self, z_k):
@@ -24,12 +24,12 @@ class Track:
         self.missed_count = 0
         return self.kf.update(z_k)
     
-    def propagate(self):
-        "Propagate current track prediction forward into current state estimate"
+    def coast(self):
+        "coast current track prediction forward into current state estimate"
         self.kf.x_hat_km1_km1 = self.kf.x_hat_k_km1
         self.kf.P_km1_km1 = self.kf.P_k_km1
         self.kf.x_hat_k_k = self.kf.x_hat_k_km1
-        self.kf.P_k_k = self.kf.P_k_km1 # Here we never intend to update so we use our propagate our predication forward.
+        self.kf.P_k_k = self.kf.P_k_km1 # Here we never intend to update so we use our coast our predication forward.
 
     def miss(self):
         "Indicates track has missed detection. increases age of track and missed count."
@@ -37,7 +37,7 @@ class Track:
         self.missed_count += 1
         
     def promote_track(self):
-        self.tenative = False
+        self.tentative = False
         
         
             
@@ -51,13 +51,14 @@ class TrackManager:
         self.pred_log = {}
         self.gate_log = {}
         self.assoc_log = {}
+        
     def get_new_track_id(self):
         track_id = self.next_track_id
         self.next_track_id += 1
         return track_id
                         
-    def tenative_track(self, z_k, track_id):
-        "Build a tenative track add it to the track list it now has age 1 missed count 0 and tenative set to True"
+    def tentative_track(self, z_k, track_id):
+        "Build a tentative track add it to the track list it now has age 1 missed count 0 and tentative set to True"
         t_track = {
             "id": track_id,
             "x": np.array([[z_k[0].item()],
@@ -81,10 +82,7 @@ class TrackManager:
         return track_id
         
     def delete_track(self, track):
-        del_id = track.track_id
-        for i, trx in enumerate(self.tracks):
-            if trx.track_id == del_id:
-                self.tracks.remove(self.tracks[i])
+        self.tracks = [t for t in self.tracks if t.track_id != track.track_id]
         
     
     def predict_all(self):
