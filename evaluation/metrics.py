@@ -103,3 +103,8 @@ def position_rmse_per_track_from_truth_and_predlog(truth_state, pred_log):
             per_track_rmse[track_id] = np.nan
 
     return per_track_rmse
+
+def nees(x_hat, x, P):
+    "Normalized estimation error squared (NEES)"
+    epsilon = (x_hat - x).T @ np.linalg.solve(P, (x_hat - x))
+    return epsilon
