@@ -1,7 +1,6 @@
 
 import numpy as np
 from scipy.optimize import linear_sum_assignment
-from data import vars
 from src.tracking.kalman_filter import KalmanFilter
 from src.tracking.track import Track
 class TrackManager:
@@ -20,7 +19,7 @@ class TrackManager:
         self.next_track_id += 1
         return track_id
                         
-    def tentative_track(self, z_k, track_id):
+    def tentative_track(self, z_k, track_id, F, H, Q, R):
         "Build a tentative track add it to the track list it now has age 1 missed count 0 and tentative set to True"
         t_track = {
             "id": track_id,
@@ -35,7 +34,7 @@ class TrackManager:
                 [0.0, 0.0, 0.0, 100.0]
             ], dtype=float)
         }
-        ten_track = Track(t_track['id'], KalmanFilter(vars.F, vars.H, vars.Q, vars.R, t_track['x'], t_track["P"]), True)
+        ten_track = Track(t_track['id'], KalmanFilter(F, H, Q, R, t_track['x'], t_track["P"]), True)
         ten_track.kf.x_hat_k_km1 = ten_track.kf.x_hat_km1_km1
         ten_track.kf.x_hat_k_k = ten_track.kf.x_hat_km1_km1
         ten_track.kf.P_k_km1 = ten_track.kf.P_km1_km1

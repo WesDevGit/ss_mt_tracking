@@ -1,38 +1,8 @@
 import numpy as np
-from data import vars
 from src.models import measurement_models
 from src.models import motion_models
-
-sigma_ax = 1.2
-sigma_ay = 0.8
-dt = 1.5
-G = np.array([
-    [0.5 * dt**2, 0.0],
-    [0.0, 0.5 * dt**2],
-    [dt, 0.0],
-    [0.0, dt]
-], dtype=float)
-
-Sigma_a = np.array([
-    [sigma_ax**2, 0.0],
-    [0.0, sigma_ay**2]
-], dtype=float)
-
-Q = G @ Sigma_a @ G.T
-
-sigma_x = 4.0
-sigma_y = 6.0
-rho = 0.25
-
-R = np.array([
-    [sigma_x**2,           rho * sigma_x * sigma_y],
-    [rho * sigma_x * sigma_y, sigma_y**2]
-], dtype=float)
-
-def measurement_noise(R):
-    return np.random.multivariate_normal(mean=[0, 0], cov=R).reshape(2, 1)
-
-def generate_truth(n_steps, truth_data, P, id_miss_index):
+from configs.multi_track_ss_baseline import measurement_noise
+def generate_truth(n_steps, truth_data, P, id_miss_index, R, dt):
     true_state = []
     track_truths = [] # truth starts from k-1
     measure_data = [] # measurements start from k
@@ -59,7 +29,7 @@ def generate_truth(n_steps, truth_data, P, id_miss_index):
     truth_velocities = {}
     for tid in track_truths:
         truth_velocities[tid['id']] =  [x[2:,:] for x in tid['x_states']]
-    truth_times = [i * vars.dt for i in range(n_steps + 1)] # k-1 to k_99 = 101 
+    truth_times = [i * dt for i in range(n_steps + 1)] # k-1 to k_99 = 101 
     scans = build_scans(measure_data, id_miss_index)
     truth_exists = truth_misses(track_truths, id_miss_index, len(truth_times))
     return truth_states, truth_positions, truth_velocities, truth_times, truth_exists, scans
