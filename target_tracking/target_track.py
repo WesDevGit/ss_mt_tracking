@@ -12,6 +12,7 @@ class Track:
         self.age = 1 # track age (number of times track_id remains alive)
         self.hit_count = 1 
         self.tenative = tenative # determines if the track is tenative or active
+        self.track_predicted_states = {}
 
     def predict(self):
         "Used to predict single track but do not propagate"
@@ -46,7 +47,10 @@ class TrackManager:
         self.gate_threshold = gate_threshold # currently based on Mahalanobis distance (chi squared) with n
                                              # degrees of freedom (measurement vector dim) and confidence
         self.next_track_id = max((t.track_id for t in tracks), default=0) + 1
-    
+        self.scan_log = {}
+        self.pred_log = {}
+        self.gate_log = {}
+        self.assoc_log = {}
     def get_new_track_id(self):
         track_id = self.next_track_id
         self.next_track_id += 1
@@ -99,7 +103,7 @@ class TrackManager:
         y = z_k - (kf.H @ kf.x_hat_k_km1)
         S = kf.H @ kf.P_k_km1 @ kf.H.T + kf.R
         d2 = y.T @ np.linalg.solve(S, y)
-        return d2.item()
+        return y, S, d2.item()
 
     def build_cost_matrix(self, measurements):
         """Cost Matrix NxM where N are tracks and M are measurements. Elements of the cost matrix
@@ -111,19 +115,34 @@ class TrackManager:
         N = len(self.tracks)
         M = len(measurements)
 
-        cost_matrix = np.zeros((N, M), dtype=float)
-        
+        invalid_cost = 1e6
+        cost_matrix = np.full((N, M), invalid_cost, dtype=float)
+
+        gate_info = {}
+
         for i, track in enumerate(self.tracks):
+            track_id = track.track_id
+            gate_info[track_id] = {}
+
             for j, z in enumerate(measurements):
-                d2 = self.mahalanobis_distance(track, z)
-                if d2 <= self.gate_threshold:
-                    cost_matrix[i,j] = d2
-                else:
-                    cost_matrix[i,j] = 1e6
+                y, S, d2 = self.mahalanobis_distance(track, z)
 
-        return cost_matrix
+                passed_gate = d2 <= self.gate_threshold
 
-    def gnn_associate(self, measurements):
+                gate_info[track_id][j + 1] = {
+                    "measurement": z,
+                    "y": y,
+                    "S": S,
+                    "d2": d2,
+                    "passed_gate": passed_gate
+                }
+
+                if passed_gate:
+                    cost_matrix[i, j] = d2
+
+        return cost_matrix, gate_info
+
+    def gnn_associate(self, measurements, k):
         """
         Build cost matrix and solve the linear solve assignment problem.
         
@@ -131,29 +150,46 @@ class TrackManager:
         Check to see is the assignment for a track is within gate threshold
         If so we assign tracks to measurements, mark unassigned tracks, and mark unassigned measurements.
         """
-        cost_matrix = self.build_cost_matrix(measurements)
-
-        row_ind, col_ind = linear_sum_assignment(cost_matrix) # Number of matches it will return is min(n,m) 
+        cost_matrix, gate_info = self.build_cost_matrix(measurements)
+        row_ind, col_ind = linear_sum_assignment(cost_matrix)
 
         assignments = []
         assigned_tracks = set()
         assigned_measurements = set()
 
         for i, j in zip(row_ind, col_ind):
-            if cost_matrix[i, j] <= self.gate_threshold: # Even if a match is assigned throughout the cost_matrix it is dropped from assignment if it is invalid.
-                assignments.append(
-                    {
-                        "track_id": self.tracks[i].track_id,
-                        "measurment_number": j + 1,
-                        "measurement": measurements[j]
-                                    }
-                                   )
+            if cost_matrix[i, j] <= self.gate_threshold:
+                track_id = self.tracks[i].track_id
+
+                assignments.append({
+                    "track_id": track_id,
+                    "measurement_number": j + 1,
+                    "measurement": measurements[j],
+                    "y": gate_info[track_id][j + 1]["y"],
+                    "S": gate_info[track_id][j + 1]["S"],
+                    "d2": gate_info[track_id][j + 1]["d2"],
+                })
+
                 assigned_tracks.add(i)
                 assigned_measurements.add(j)
+        if k not in self.gate_log:
+            self.gate_log[k] = {}
 
+        for assign in assignments:
+            track_id = assign["track_id"]
+            meas_num = assign["measurement_number"]
+
+            if track_id not in self.gate_log[k]:
+                self.gate_log[k][track_id] = {}
+
+            self.gate_log[k][track_id][meas_num] = {
+                "y": assign["y"],
+                "S": assign["S"],
+                "d2": assign["d2"]
+            }
         unassigned_tracks = [{"track_id": self.tracks[i].track_id}
                             for i in range(len(self.tracks))
                             if i not in assigned_tracks]
-        unassigned_measurements = [{"measurment_number":j+1, "measurement": measurements[j]} for j in range(len(measurements)) if j not in assigned_measurements]
-
+        unassigned_measurements = [{"measurement_number":j+1, "measurement": measurements[j]} for j in range(len(measurements)) if j not in assigned_measurements]
+        self.assoc_log[k] = {'cost_matrix': cost_matrix,"assignments":assignments, "unassigned_tracks": unassigned_tracks, "unassigned_measurements": unassigned_measurements}
         return assignments, unassigned_tracks, unassigned_measurements, cost_matrix
