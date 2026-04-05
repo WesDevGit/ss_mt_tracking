@@ -1,12 +1,13 @@
 import numpy as np
 # This is the first project where I am building out my system. Here we implement a seed to begin validating everything is working.
-
-np.random.seed(1)
+def ss_baseline_seed():
+    return np.random.seed(3)
 
 def measurement_noise(R):
     return np.random.multivariate_normal(mean=[0, 0], cov=R).reshape(2, 1)
-sigma_ax = 1.2
-sigma_ay = 0.8
+
+sigma_ax = 1.0
+sigma_ay = 0.4
 dt = 1.5
 G = np.array([
     [0.5 * dt**2, 0.0],
@@ -22,15 +23,15 @@ Sigma_a = np.array([
 
 Q = G @ Sigma_a @ G.T
 
-sigma_x = 4.0
-sigma_y = 6.0
-rho = 0.25
+sigma_x = 0.8
+sigma_y = 0.8
+rho = 0.95
 
 R = np.array([
     [sigma_x**2,           rho * sigma_x * sigma_y],
     [rho * sigma_x * sigma_y, sigma_y**2]
 ], dtype=float)
-P0 = np.diag([R[0,0], R[1,1], 100.0, 100.0])
+P0 = np.diag([12., 12., 12.0, 12.0])
 
 
 truth_data = [ 

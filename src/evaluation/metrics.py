@@ -5,7 +5,38 @@ def pos_from_state(x):
     return np.asarray(x, dtype=float).reshape(-1)[:2]
 
 
+def nees_metrics(tracker, truth_data):
+    truth_ids = {truth['id'] for truth in truth_data}
+    all_nees = []
 
+    for track_id, nees_values in tracker.update_log.items():
+        if track_id in truth_ids and len(nees_values) > 0:
+            print(f"Track_{track_id} NEES: {np.mean(nees_values)}")
+            all_nees.extend(nees_values)
+
+    print("------\n")
+
+    if len(all_nees) > 0:
+        print(f"Overall NEES: {np.mean(all_nees)}")
+    else:
+        print("Overall NEES: no values")
+
+def nis_metrics(tracker, truth_data):
+    truth_ids = {truth['id'] for truth in truth_data}
+    all_nis = []
+
+    for track_id, nis_values in tracker.consistency_log.items():
+        if track_id in truth_ids and len(nis_values) > 0:
+            print(f"Track_{track_id} NIS: {np.mean(nis_values)}")
+            all_nis.extend(nis_values)
+
+    print("------\n")
+
+    if len(all_nis) > 0:
+        print(f"Overall NIS: {np.mean(all_nis)}")
+    else:
+        print("Overall NIS: no values")
+                
 def position_rmse_from_truth_and_predlog(truth_state, pred_log):
     """
     Compute overall position RMSE using:

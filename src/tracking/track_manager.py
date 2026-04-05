@@ -3,6 +3,7 @@ import numpy as np
 from scipy.optimize import linear_sum_assignment
 from src.tracking.kalman_filter import KalmanFilter
 from src.tracking.track import Track
+
 class TrackManager:
     def __init__(self, tracks, gate_threshold):
         self.tracks = tracks # list of track objects
@@ -13,12 +14,21 @@ class TrackManager:
         self.pred_log = {}
         self.gate_log = {}
         self.assoc_log = {}
+        self.consistency_log = {}
+        self.update_log = {}
         
     def get_new_track_id(self):
         track_id = self.next_track_id
         self.next_track_id += 1
         return track_id
                         
+    def log_error(self, track, truth):
+        epsilon = (track.kf.x_hat_k_k - truth).T @ np.linalg.solve(track.kf.P_k_k, (track.kf.x_hat_k_k - truth))
+        if track.track_id not in self.update_log.keys():
+            self.update_log[track.track_id] = [epsilon.item()]
+        else:
+            self.update_log[track.track_id].append(epsilon.item())
+            
     def tentative_track(self, z_k, track_id, F, H, Q, R):
         "Build a tentative track add it to the track list it now has age 1 missed count 0 and tentative set to True"
         t_track = {
@@ -120,7 +130,10 @@ class TrackManager:
         for i, j in zip(row_ind, col_ind):
             if cost_matrix[i, j] <= self.gate_threshold:
                 track_id = self.tracks[i].track_id
-
+                if track_id not in self.consistency_log.keys():
+                    self.consistency_log[track_id] = [gate_info[track_id][j + 1]["d2"]]
+                else:
+                    self.consistency_log[track_id].append(gate_info[track_id][j + 1]["d2"])
                 assignments.append({
                     "track_id": track_id,
                     "measurement_number": j + 1,

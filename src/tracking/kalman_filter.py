@@ -14,7 +14,7 @@ class KalmanFilter:
         self.P_k_km1 = None  # posterior predicated covariance P_{k|k-1}
         self.x_hat_k_k = None # updated state estimate x_hat_{k|k}
         self.P_k_k = None  #  updated covariance P_{k|k}
- 
+        
     def predict(self):
         """
         Prediction step:

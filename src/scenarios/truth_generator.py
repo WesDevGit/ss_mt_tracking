@@ -1,8 +1,8 @@
 import numpy as np
 from src.models import measurement_models
 from src.models import motion_models
-from configs.multi_track_ss_baseline import measurement_noise
-def generate_truth(n_steps, truth_data, P, id_miss_index, R, dt):
+
+def generate_truth(n_steps, truth_data, P, id_miss_index, R, dt, measurement_noise):
     true_state = []
     track_truths = [] # truth starts from k-1
     measure_data = [] # measurements start from k
@@ -36,7 +36,7 @@ def generate_truth(n_steps, truth_data, P, id_miss_index, R, dt):
 
 ### Truth data is a list of dictionaries with {"id":, "x", "P"}
  
-def build_scans(measure_data, miss_indices, clutter_rate=0.0, clutter_bounds=None):
+def build_scans(measure_data, miss_indices):
     all_measurements = [md['measurements'] for md in measure_data]
     id_to_idx = {md['id']: i for i, md in enumerate(measure_data)}
     pos_miss = {id_to_idx[tid]: indices for tid, indices in miss_indices.items()
@@ -52,18 +52,7 @@ def build_scans(measure_data, miss_indices, clutter_rate=0.0, clutter_bounds=Non
             if track_idx in pos_miss and scan_index in pos_miss[track_idx]:
                 continue
             scan_measurements.append(track_meas[i])
-
-        if clutter_rate > 0 and clutter_bounds is not None:
-            n_clutter = np.random.poisson(clutter_rate)
-            for _ in range(n_clutter):
-                false_alarm = np.array([
-                    [np.random.uniform(clutter_bounds['x_min'], clutter_bounds['x_max'])],
-                    [np.random.uniform(clutter_bounds['y_min'], clutter_bounds['y_max'])]
-                ])
-                scan_measurements.append(false_alarm)
-
         scans[scan_index] = scan_measurements
-
     return scans
 
 def truth_misses(track_truths, id_miss_index, n_times):
