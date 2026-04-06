@@ -5,10 +5,10 @@ from src.tracking.kalman_filter import KalmanFilter
 from src.tracking.track import Track
 
 class TrackManager:
-    def __init__(self, tracks, gate_threshold):
-        self.tracks = tracks # list of track objects
-        self.gate_threshold = gate_threshold # currently based on Mahalanobis distance (chi squared) with n
-                                             # degrees of freedom (measurement vector dim) and confidence
+    def __init__(self, tracks, gate_threshold, track_factory=None):
+        self.tracks = tracks
+        self.gate_threshold = gate_threshold
+        self.track_factory = track_factory
         self.next_track_id = max((t.track_id for t in tracks), default=0) + 1
         self.scan_log = {}
         self.pred_log = {}
@@ -23,35 +23,26 @@ class TrackManager:
         return track_id
                         
     def log_error(self, track, truth):
-        epsilon = (track.kf.x_hat_k_k - truth).T @ np.linalg.solve(track.kf.P_k_k, (track.kf.x_hat_k_k - truth))
+        try:
+            epsilon = (track.kf.x_hat_k_k - truth).T @ np.linalg.solve(track.kf.P_k_k, (track.kf.x_hat_k_k - truth))
+        except Exception as e:
+            print(e)
+            print(track.kf.P_k_k)
+            epsilon = (track.kf.x_hat_k_k - truth).T @ np.linalg.pinv(track.kf.P_k_k) @ (track.kf.x_hat_k_k - truth)
         if track.track_id not in self.update_log.keys():
             self.update_log[track.track_id] = [epsilon.item()]
         else:
             self.update_log[track.track_id].append(epsilon.item())
             
-    def tentative_track(self, z_k, track_id, F, H, Q, R):
-        "Build a tentative track add it to the track list it now has age 1 missed count 0 and tentative set to True"
-        t_track = {
-            "id": track_id,
-            "x": np.array([[z_k[0].item()],
-                        [z_k[1].item()],
-                        [ 0.0],
-                        [0.0]], dtype=float),
-            "P": np.array([
-                [36.0, 0.0, 0.0,  0.0],
-                [0.0, 36.0, 0.0,  0.0],
-                [0.0, 0.0, 100.0, 0.0],
-                [0.0, 0.0, 0.0, 100.0]
-            ], dtype=float)
-        }
-        ten_track = Track(t_track['id'], KalmanFilter(F, H, Q, R, t_track['x'], t_track["P"]), True)
-        ten_track.kf.x_hat_k_km1 = ten_track.kf.x_hat_km1_km1
-        ten_track.kf.x_hat_k_k = ten_track.kf.x_hat_km1_km1
-        ten_track.kf.P_k_km1 = ten_track.kf.P_km1_km1
-        ten_track.kf.P_k_k = ten_track.kf.P_km1_km1
-        
-        self.tracks.append(ten_track)
-        return track_id
+    def tentative_track(self, track):
+        "Add a tentative track to the track list and initialize its current fields."
+        track.kf.x_hat_k_km1 = track.kf.x_hat_km1_km1.copy()
+        track.kf.x_hat_k_k = track.kf.x_hat_km1_km1.copy()
+        track.kf.P_k_km1 = track.kf.P_km1_km1.copy()
+        track.kf.P_k_k = track.kf.P_km1_km1.copy()
+
+        self.tracks.append(track)
+        return track.track_id
         
     def delete_track(self, track):
         self.tracks = [t for t in self.tracks if t.track_id != track.track_id]
@@ -61,19 +52,21 @@ class TrackManager:
         "Predict all tracks x_hat_k|km1 and P_k|km1"
         for track in self.tracks:
             track.predict()
+            
+    def create_tentative_from_measurement(self, z_k):
+        if self.track_factory is None:
+            return None
 
+        track_id = self.get_new_track_id()
+        track = self.track_factory(track_id, z_k)
+        return self.tentative_track(track)
+    
     def mahalanobis_distance(self, track, z_k):
         """
-        Point to distribution hypothesis testing. Answers the question, for a given measurement, how confident am I
-        this measurement belongs to this track?
-        * H_0: Measurement came from this track
-        * H_1: Measurement is clutter or from another target
+        Point-to-distribution hypothesis testing.
         """
-        kf = track.kf
-        y = z_k - (kf.H @ kf.x_hat_k_km1)
-        S = kf.H @ kf.P_k_km1 @ kf.H.T + kf.R
-        d2 = y.T @ np.linalg.solve(S, y)
-        return y, S, d2.item()
+        _, _, y, S, d2 = track.kf.gating_stats(z_k)
+        return y, S, d2
 
     def build_cost_matrix(self, measurements):
         """Cost Matrix NxM where N are tracks and M are measurements. Elements of the cost matrix

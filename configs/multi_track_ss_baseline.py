@@ -23,15 +23,15 @@ Sigma_a = np.array([
 
 Q = G @ Sigma_a @ G.T
 
-sigma_x = 0.8
-sigma_y = 0.8
+sigma_x = 1.8
+sigma_y = 3.8
 rho = 0.95
 
 R = np.array([
     [sigma_x**2,           rho * sigma_x * sigma_y],
     [rho * sigma_x * sigma_y, sigma_y**2]
 ], dtype=float)
-P0 = np.diag([12., 12., 12.0, 12.0])
+P0 = np.diag([23., 23., 23.0, 22.0])
 
 
 truth_data = [ 
