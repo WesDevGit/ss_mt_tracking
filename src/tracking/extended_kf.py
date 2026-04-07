@@ -7,22 +7,22 @@ class ExtendedKalmanFilter:
         R,
         x_hat_km1_km1,
         P_km1_km1,
-        sensor_position=np.array([[0.0], [0.0]]),
+        sensor_position,
         dt=1.5,
         omega_eps=1e-6,
     ):
         self.Q = Q
         self.R = R
 
-        self.x_hat_km1_km1 = x_hat_km1_km1
-        self.P_km1_km1 = P_km1_km1
+        self.x_hat_km1_km1 = x_hat_km1_km1.copy()
+        self.P_km1_km1 = P_km1_km1.copy()
 
         self.x_hat_k_km1 = None
         self.P_k_km1 = None
         self.x_hat_k_k = None
         self.P_k_k = None
+        self.sensor_position = sensor_position.copy()
 
-        self.sensor_position = sensor_position
         self.dt = dt
         self.omega_eps = omega_eps
 
@@ -40,17 +40,17 @@ class ExtendedKalmanFilter:
         y = y.copy()
         y[1, 0] = self.normalize_angle(y[1, 0])
         return y
-
+    
     def f_ct(self, x):
         px, py, vx, vy, omega = x.flatten()
         dt = self.dt
 
         if abs(omega) < self.omega_eps:
             return np.array([
-                [px + dt * vx],
-                [py + dt * vy],
-                [vx],
-                [vy],
+                [px + dt * vx - 0.5 * dt**2 * omega * vy],
+                [py + dt * vy + 0.5 * dt**2 * omega * vx],
+                [vx - dt * omega * vy],
+                [vy + dt * omega * vx],
                 [omega],
             ], dtype=float)
 
@@ -68,6 +68,7 @@ class ExtendedKalmanFilter:
             [s * vx + c * vy],
             [omega],
         ], dtype=float)
+        
 
     def f_ct_jacobian(self, x):
         px, py, vx, vy, omega = x.flatten()

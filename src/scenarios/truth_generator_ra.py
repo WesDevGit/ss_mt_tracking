@@ -100,8 +100,8 @@ def h_range_az(state_vector, sensor_position):
         [-dy / r2,    dx / r2,     0.0, 0.0, 0.0],
     ], dtype=float)
 
-    return h_x, H
-    
+    return h_x, H  
+
 def generate_truth(
     n_steps,
     truth_data,
@@ -127,14 +127,18 @@ def generate_truth(
             "measurements": [],
         }
 
-        for _ in range(n_steps):
+        omega_profile = state.get("omega_profile", None)
+
+        for k in range(n_steps):
+            if omega_profile is not None:
+                x_k[4, 0] = omega_profile(k)
+
             x_k = f_ct(x_k, dt)
             truth_entry["x_states"].append(x_k.copy())
 
             h, H = h_range_az(x_k, sensor_position)
             z_k = h + measurement_noise(R)
             z_k[1, 0] = wrap_angle(z_k[1, 0])
-
             meas_entry["measurements"].append(z_k)
 
         track_truths.append(truth_entry)

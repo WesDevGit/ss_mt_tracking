@@ -26,8 +26,6 @@ class TrackManager:
         try:
             epsilon = (track.kf.x_hat_k_k - truth).T @ np.linalg.solve(track.kf.P_k_k, (track.kf.x_hat_k_k - truth))
         except Exception as e:
-            print(e)
-            print(track.kf.P_k_k)
             epsilon = (track.kf.x_hat_k_k - truth).T @ np.linalg.pinv(track.kf.P_k_k) @ (track.kf.x_hat_k_k - truth)
         if track.track_id not in self.update_log.keys():
             self.update_log[track.track_id] = [epsilon.item()]
