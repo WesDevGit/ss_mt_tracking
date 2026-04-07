@@ -1,7 +1,7 @@
 import numpy as np
 # This is the first project where I am building out my system. Here we implement a seed to begin validating everything is working.
 def ss_baseline_seed():
-    return np.random.seed(3)
+    return np.random.seed(4)
 
 def measurement_noise(R):
     return np.random.multivariate_normal(mean=[0, 0], cov=R).reshape(2, 1)
@@ -31,7 +31,7 @@ R = np.array([
     [sigma_x**2,           rho * sigma_x * sigma_y],
     [rho * sigma_x * sigma_y, sigma_y**2]
 ], dtype=float)
-P0 = np.diag([23., 23., 23.0, 22.0])
+P0 = np.diag([23., 23., 3.0, 3.0])
 
 
 truth_data = [ 

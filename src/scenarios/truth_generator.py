@@ -2,40 +2,41 @@ import numpy as np
 from src.models import measurement_models
 from src.models import motion_models
 
-def generate_truth(n_steps, truth_data, P, id_miss_index, R, dt, measurement_noise):
-    true_state = []
-    track_truths = [] # truth starts from k-1
-    measure_data = [] # measurements start from k
+def generate_truth(n_steps, truth_data, id_miss_index, R, dt, measurement_noise):
+    track_truths = []
+    measure_data = []
+
     for state in truth_data:
         x_k = state['x'].copy()
-        truth_states = {"id": state['id'], "x_states": [x_k.copy()], "P": P}
-        track_measurements = {"id": state['id']}
+
+        truth_entry = {"id": state['id'], "x_states": [x_k.copy()]}
+        meas_entry = {"id": state['id'], "measurements": []}
+
         for _ in range(n_steps):
             x_k = motion_models.F @ x_k
-            truth_states['x_states'].append(x_k.copy())
-            if not 'measurements' in track_measurements.keys():
-                track_measurements['measurements'] = [measurement_models.H @ x_k.copy() + measurement_noise(R)]
-            else:
-                track_measurements['measurements'].append(measurement_models.H @ x_k.copy() + measurement_noise(R))
-        track_truths.append(truth_states)
-        measure_data.append(track_measurements)
+            truth_entry['x_states'].append(x_k.copy())
+            meas_entry['measurements'].append(measurement_models.H @ x_k.copy() + measurement_noise(R))
+
+        track_truths.append(truth_entry)
+        measure_data.append(meas_entry)
 
     truth_states = {}
-    for tid in track_truths: # truth starts from k-1 to k99 so you have 101 
-        truth_states[tid['id']] =  [x for x in tid['x_states']]
+    for tid in track_truths:
+        truth_states[tid['id']] = [x for x in tid['x_states']]
+
     truth_positions = {}
     for tid in track_truths:
-        truth_positions[tid['id']] =  [x[:2,:] for x in tid['x_states']]
+        truth_positions[tid['id']] = [x[:2, :] for x in tid['x_states']]
+
     truth_velocities = {}
     for tid in track_truths:
-        truth_velocities[tid['id']] =  [x[2:,:] for x in tid['x_states']]
-    truth_times = [i * dt for i in range(n_steps + 1)] # k-1 to k_99 = 101 
+        truth_velocities[tid['id']] = [x[2:, :] for x in tid['x_states']]
+
+    truth_times = [i * dt for i in range(n_steps + 1)]
     scans = build_scans(measure_data, id_miss_index)
     truth_exists = truth_misses(track_truths, id_miss_index, len(truth_times))
     return truth_states, truth_positions, truth_velocities, truth_times, truth_exists, scans
 
-### Truth data is a list of dictionaries with {"id":, "x", "P"}
- 
 def build_scans(measure_data, miss_indices):
     all_measurements = [md['measurements'] for md in measure_data]
     id_to_idx = {md['id']: i for i, md in enumerate(measure_data)}

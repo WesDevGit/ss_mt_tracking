@@ -7,8 +7,8 @@ class KalmanFilter:
         self.Q = Q
         self.R = R
 
-        self.x_hat_km1_km1 = x_hat_km1_km1
-        self.P_km1_km1 = P_km1_km1
+        self.x_hat_km1_km1 = x_hat_km1_km1.copy()
+        self.P_km1_km1 = P_km1_km1.copy()
 
         self.x_hat_k_km1 = None
         self.P_k_km1 = None
