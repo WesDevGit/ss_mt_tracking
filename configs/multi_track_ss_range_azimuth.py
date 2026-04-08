@@ -130,6 +130,16 @@ truth_data = [
         "omega_profile":  lambda k: 0.0 if k < 20 else (-0.03 if k < 40 else (0.02 if k < 100 else (0.05 if k < 140 else 0.0)))
     },
     {
+        "id": 4,
+        "x": np.array([[80.0],
+                       [-40.0],
+                       [-1.0],
+                       [0.5],
+                       [-0.015]], dtype=float),
+        "P": P0.copy(),
+        "omega_profile":  lambda k: 0.0 if k < 40 else (-0.02 if k < 60 else (0.03 if k < 90 else (0.04 if k < 120 else 0.0)))
+    },
+    {
         "id": 3,
         "x": np.array([[20.0],
                        [70.0],
