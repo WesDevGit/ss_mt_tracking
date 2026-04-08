@@ -23,9 +23,9 @@ Sigma_a = np.array([
 
 Q = G @ Sigma_a @ G.T
 
-sigma_x = 1.8
-sigma_y = 3.8
-rho = 0.95
+sigma_x = 1.4
+sigma_y = 2.8
+rho = 0.85
 
 R = np.array([
     [sigma_x**2,           rho * sigma_x * sigma_y],
@@ -76,4 +76,5 @@ truth_data = [
         "P": P0
     }
 ]
-id_miss_index = {1: [10, 12, 13, 14, 15, 25]}
+id_miss_index = {}
+

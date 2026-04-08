@@ -143,6 +143,8 @@ def plot_tracks(
 
     # Predicted trajectories
     for track_id, vals in pred_positions.items():
+        if len(vals['x']) < 5:
+            continue
         ax.plot(
             vals["x"],
             vals["y"],
